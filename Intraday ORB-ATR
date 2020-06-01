@@ -1,0 +1,135 @@
+INTRADAY ORB-ATR STRATEGY
+By
+Algo Trader (@f2003062)
+
+Introduction
+
+ORB - Opening Range Breakout. This strategy is based on opening range breakout of first 45 minutes after the market opens i.e. we start trading only from 10 AM. 
+
+ATR - Average True Range. There is no fixed target in this strategy. After entering the trade, we need to trail the SL till the SL/trailing SL hits or square off at intraday square off time. 
+
+Since this concept is based on opening range breakout and I am using ATR indicator to trail the SL, I named it ORB-ATR.
+
+Stock selection
+
+This strategy has fixed set of stocks. Please use the strategy only on following stocks. These stocks are selected based on backtesting the data of more than 3 years considering consistency over a period of each 6 months, combination of stocks to minimize drawdowns, high liquidity and many other aspects.
+
+TATAMOTORS
+TECHM
+LUPIN
+SBIN
+TATASTEEL
+SAIL
+VEDL
+CANBK
+DRREDDY
+M&M
+MARUTI
+ASHOKLEY
+
+Process and qualifying the stocks for the day
+
+Start processing all the stocks from the above list at 10 AM i.e. after 45 minutes completed since market open.
+Apply following filters:
+Ignore stock if first 15 minute candle close change is more than 4% (+/-) compared to previous day close.
+Note down high and low of the first 45 minutes. You can do this by opening the 15 min chart and mark the highest and lowest value of first 3 candles. Let us call these variables as 45MinRangeHigh and 45MinRangeLow.
+Note down previous day high and previous day low.
+First 45 min range should break the previous day high or low. So consider the stock only if 45MinRangeHigh > previousDayHigh (or) 45MinRangeLow < previousDayLow. Else ignore the stock.
+
+Creating Entry points
+
+LONG Trade: Long trade is a special scenario where we should not take the trade on breakout of just 45MinRangeHigh. I have an extra condition for taking long trade i.e. stock should be up at least 2% at the time of taking the trade. 
+Example 1: 
+TATASTEEL 
+45MinRangeHigh = 484
+Previous day close = 476
+So stock is up by 1.68% at 45MinRangeHigh value, we should not take trade on breaking 484, because 1.68% < 2.0%. Hence we should calculate the price with 2% from the previous day close which would be 485.5  in this case. We are going to take trade on breakout of 485.5 not 484.
+
+Example 2:
+TATAMOTORS:
+45MinRangeHigh = 192.4
+Previous day close = 186
+So stock is up by 3.44% at 45MinRangeHigh value which is greater than 2% hence we can take the trade on breakout of 45MinRangeHigh which is 192.4 in this case.
+
+SHORT Trade: No special treatment for going short. We enter the trade as soon the 45MinRangeLow breaks downside.
+
+
+
+
+Max number of trades per day
+
+I have set max number of stocks per day to 2 only by equally allocating capital for each trade. You can go for 3 if you wish, but do not go for more than 3 as it wont give good results in the long run.
+
+Question: Which of the 2 stocks to trade on if there are more than 2 stocks qualifies for the day?
+Answer: Whichever the first 2 stocks breaks its range first. If stock A breaks its lower range at 10:06 AM, stock B breaks its upper range (Note: min 2% for long trade) at 10:08 AM and stock C breaks its lower range at 10:24 AM, then you need to take the trade on stocks A and B by ignoring stock C as it came late.
+
+Order type LIMIT or MARKET
+
+I do place only LIMIT order after breakout and the LIMIT price would be the exact breakout point.
+
+Question: What if order not filled?
+Answer: If the order not filled in the next 25 minutes from the breakout timestamp, then I will cancel the order. 
+
+Question: What if order gets filled partially?
+Answer: I will consider the partially filled trade. Example: Order placed for 1000 quantity and order filled upto 750 quantity in next 25 minutes, then after completion of 25 minutes I will change the original order quantity to 750 and will update the same 750 quantity in SL order.
+
+
+Initial Stop loss
+
+Ideally the SL would be the opposite end of  the range breakout i.e.  stop loss is 45MinRangeLow for LONG trade and 45MinRangeHigh for short trade. But for better risk management and by considering the average movement of stocks in negative direction of your trade I have applied some logic here.
+
+Max SL percentage should be 0.75% from your entry price. For example for a LONG trade if I am considering the SL as 45MinRangeLow and that value is 1.2% far from my entry price, then I will decrease the SL by keeping only 0.75% from my entry point.
+Min SL percentage should be 0.6% from your entry price. In case if the range is very small like 0.3% then if you are setting your SL at 0.3% distance there are more chances of hitting your SL and the trade may go in your direction. So I considered minimum SL percentage as 0.6% from the entry price.
+
+So as per the above logic, the initial SL varies from 0.6% to 0.75% from entry price.
+
+Trailing Stop loss
+
+I tried many techniques so far in my back test to identify the optimum way of updating trailing SL and finally chosen ATR based value for the same as it considers the volatility of the stock.
+
+Calculation for trailing SL:
+Time frame = 5 min chart
+ATR period = 21
+
+Long Trade:
+	New SL = latest candle close - 4 * ATR (Note: its candle close not high)
+	If (New SL > Current SL) then update the SL
+
+Short Trade:
+	New SL = latest candle close + 4 * ATR (Note:its candle close not low)
+	If (New SL < Current SL) then update the SL
+
+So basically one should check latest 5 min candle close and ATR value every 5 minutes, calculate trailing SL and update if required.
+
+You can also use ATR Multiplier as 3 instead of 4, but it may attract stop loss hunters who are willing to kick you out exactly at that point and may take the trade in your original direction. It won't happen always, but happens quite a number of times and if you miss a big trade due to the stop loss hunters then you may feel bad, hence I am using 4 instead of 3. This will save you from such instances a few times but not always. 
+
+Important Point:
+I do not update the trailing SL until the stock moves 0.5% in my direction from the entry price despite the trailing SL based on ATR is telling me to move the SL. If you do so then more chances of getting stopped out early, again this has been selected by back testing more than 3 years of data considering the consistency, lesser drawdown in any month etc.
+
+Exiting trade
+
+You are out of the trade if any of the following occurs.
+Initial SL hit
+Trailing SL hit
+Square off at 3.15 PM (I do square off at 3.17 PM there is a reason for it.)
+
+
+Risk Management
+
+I risk 2.5% of capital per day i.e. if I allocated 1 lakh capital for this strategy and max number of trades I take are 2 then 1.25% risk on each trade will be applied which turns out to be 1250/- risk on each trade. 
+
+Some days you may not get any trade and some days you may get only 1 trade. And on some days your order may not be filled in 25 minutes from the breakout timestamp which is also considered as no trade.
+
+Most Important
+
+This is not a holy grail strategy, As every strategy has its bad times, this strategy also faces the same, for example I had 10 continuous loss days in february 2019 month but the month ended in just -5% loss. One needs to have high conviction to follow this strategy as the trailing stop loss is too far from the current market price. If market reverses you need to give most of your unrealized profit back to the market.
+
+I am still trying my level best to identify the reversals by reading lots of techniques and back testing them but so far no technique is giving the results as the current ATR based trailing SL is giving in the longer run. In short term you may feel this logic is not good at all, but you will realize when you follow it with strict discipline for at least 6 months.
+
+I am not going to change the current list of stocks for at least the next 6 months i.e till the end of 2019 year. In 2020, I will revise the list by back testing again the entire 2019 year and comparing the results with previous years then I may kick some stocks out and bring in new stocks into the list.
+
+
+Thanks for having the patience to read till the end of the document. For any queries tweet me at @f2003062
+
+Happy Trading :)
+
